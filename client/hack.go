@@ -2,8 +2,6 @@ package client
 
 import (
 	"sync"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // This file is cursed and this mutex is too
@@ -16,9 +14,9 @@ var sdkConfigMutex sync.Mutex
 // TODO: :dagger: :knife: :chainsaw: remove this function
 func (cc *ChainClient) SetSDKContext() func() {
 	sdkConfigMutex.Lock()
-	sdkConf := sdk.GetConfig()
-	sdkConf.SetBech32PrefixForAccount(cc.Config.AccountPrefix, cc.Config.AccountPrefix+"pub")
-	sdkConf.SetBech32PrefixForValidator(cc.Config.AccountPrefix+"valoper", cc.Config.AccountPrefix+"valoperpub")
-	sdkConf.SetBech32PrefixForConsensusNode(cc.Config.AccountPrefix+"valcons", cc.Config.AccountPrefix+"valconspub")
+	// sdkConf := sdk.GetConfig()
+	// sdkConf.SetBech32PrefixForAccount(cc.Config.AccountPrefix, cc.Config.AccountPrefix+"pub")
+	// sdkConf.SetBech32PrefixForValidator(cc.Config.AccountPrefix+"valoper", cc.Config.AccountPrefix+"valoperpub")
+	// sdkConf.SetBech32PrefixForConsensusNode(cc.Config.AccountPrefix+"valcons", cc.Config.AccountPrefix+"valconspub")
 	return sdkConfigMutex.Unlock
 }
