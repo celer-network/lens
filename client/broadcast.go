@@ -19,33 +19,12 @@ import (
 // an intermediate structure which is logged if the context has a logger
 // defined.
 func (cc *ChainClient) BroadcastTx(ctx context.Context, tx []byte) (res *sdk.TxResponse, err error) {
-	// broadcast tx sync waits for check tx to pass
-	// NOTE: this can return w/ a timeout
-	// need to investigate if this will leave the tx
-	// in the mempool or we can retry the broadcast at that
-	// point
 	syncRes, err := cc.RPCClient.BroadcastTxSync(ctx, tx)
 	if errRes := CheckTendermintError(err, tx); errRes != nil {
 		return errRes, nil
 	}
 
-	// TODO: maybe we need to check if the node has tx indexing enabled?
-	// if not, we need to find a new way to block until inclusion in a block
-
-	// wait for tx to be included in a block
-	for {
-		select {
-		// TODO: this is potentially less than optimal and may
-		// be better as something configurable
-		case <-time.After(time.Millisecond * 100):
-			resTx, err := cc.RPCClient.Tx(ctx, syncRes.Hash, false)
-			if err == nil {
-				return cc.mkTxResult(resTx)
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
+	return sdk.NewResponseFormatBroadcastTx(syncRes), err
 }
 
 func (cc *ChainClient) mkTxResult(resTx *ctypes.ResultTx) (*sdk.TxResponse, error) {

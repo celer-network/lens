@@ -2,9 +2,12 @@ package client
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
-	"github.com/cosmos/relayer/relayer/provider"
 	"strings"
+	"time"
+
+	"github.com/cosmos/relayer/relayer/provider"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -178,19 +181,71 @@ func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg) (*sdk.TxRes
 	}
 
 	// Broadcast those bytes
-	res, err := cc.BroadcastTx(ctx, txBytes)
+	txResponse, err := cc.BroadcastTx(ctx, txBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("BroadcastTx err: %w", err)
+	}
+	if txResponse.Code != sdkerrors.SuccessABCICode {
+		txResponseErr := fmt.Errorf("BroadcastTx failed with code: %d, rawLog: %s",
+			txResponse.Code, txResponse.RawLog)
+
+		return txResponse, txResponseErr
+	}
+
+	txResponse, err = cc.waitMined(txResponse.TxHash)
+	if err != nil {
+		return nil, fmt.Errorf("waitMined err: %w", err)
 	}
 
 	// transaction was executed, log the success or failure using the tx response code
 	// NOTE: error is nil, logic should use the returned error to determine if the
 	// transaction was successfully executed.
-	if res.Code != 0 {
-		return res, fmt.Errorf("transaction failed with code: %d", res.Code)
+	if txResponse.Code != 0 {
+		return txResponse, fmt.Errorf("transaction failed with code: %d", txResponse.Code)
 	}
 
-	return res, nil
+	return txResponse, nil
+}
+
+var errGasCode = fmt.Errorf("code %d", sdkerrors.ErrOutOfGas.ABCICode())
+var errSeqCode = fmt.Errorf("code %d", sdkerrors.ErrWrongSequence.ABCICode())
+
+func (cc *ChainClient) waitMined(txHash string) (*sdk.TxResponse, error) {
+	var err error
+	mined := false
+	var txResponse *sdk.TxResponse
+	hash, err := hex.DecodeString(txHash)
+	if err != nil {
+		return nil, err
+	}
+	for try := 0; try < 30; try++ {
+		time.Sleep(1 * time.Second)
+
+		resTx, err := cc.RPCClient.Tx(context.Background(), hash, true)
+		if err != nil {
+			continue
+		}
+
+		txResponse, err = cc.mkTxResult(resTx)
+		if err != nil {
+			continue
+		}
+
+		mined = true
+		break
+	}
+	if !mined {
+		return txResponse, fmt.Errorf("tx not mined, err: %w", err)
+	} else if txResponse.Code != sdkerrors.SuccessABCICode {
+		if txResponse.Code == sdkerrors.ErrOutOfGas.ABCICode() { // out of gas
+			return txResponse, fmt.Errorf("tx failed with %w, %s", errGasCode, txResponse.RawLog)
+		} else if txResponse.Code == sdkerrors.ErrWrongSequence.ABCICode() {
+			return txResponse, fmt.Errorf("tx failed with %w, %s", errSeqCode, txResponse.RawLog)
+		} else {
+			return txResponse, fmt.Errorf("tx failed with code %d, %s", txResponse.Code, txResponse.RawLog)
+		}
+	}
+	return txResponse, nil
 }
 
 func (cc *ChainClient) PrepareFactory(txf tx.Factory) (tx.Factory, error) {
