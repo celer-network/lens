@@ -214,25 +214,12 @@ func (cc *ChainClient) waitMined(txHash string) (*sdk.TxResponse, error) {
 	var err error
 	mined := false
 	var txResponse *sdk.TxResponse
-	hash, err := hex.DecodeString(txHash)
-	if err != nil {
-		return nil, err
-	}
 	for try := 0; try < 30; try++ {
 		time.Sleep(1 * time.Second)
-
-		resTx, err := cc.RPCClient.Tx(context.Background(), hash, true)
-		if err != nil {
-			continue
+		if txResponse, err = cc.queryTx(txHash); err == nil {
+			mined = true
+			break
 		}
-
-		txResponse, err = cc.mkTxResult(resTx)
-		if err != nil {
-			continue
-		}
-
-		mined = true
-		break
 	}
 	if !mined {
 		return txResponse, fmt.Errorf("tx not mined, err: %w", err)
@@ -246,6 +233,25 @@ func (cc *ChainClient) waitMined(txHash string) (*sdk.TxResponse, error) {
 		}
 	}
 	return txResponse, nil
+}
+
+func (cc *ChainClient) queryTx(hashHexStr string) (*sdk.TxResponse, error) {
+	hash, err := hex.DecodeString(hashHexStr)
+	if err != nil {
+		return nil, err
+	}
+
+	resTx, err := cc.RPCClient.Tx(context.Background(), hash, true)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := cc.mkTxResult(resTx)
+	if err != nil {
+		return out, err
+	}
+
+	return out, nil
 }
 
 func (cc *ChainClient) PrepareFactory(txf tx.Factory) (tx.Factory, error) {
