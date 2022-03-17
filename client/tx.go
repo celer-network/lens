@@ -174,7 +174,7 @@ func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg, msgPackage 
 		for _, message := range protoProvider.GetProtoTx().GetBody().GetMessages() {
 			temps := strings.Split(message.TypeUrl, ".")
 			typeName := temps[len(temps)-1]
-			message.TypeUrl = *msgPackage + "." + typeName
+			message.TypeUrl = "/" + *msgPackage + "." + typeName
 		}
 	}
 
@@ -406,7 +406,7 @@ func BuildSimTx(txf tx.Factory, msgPackage *string, msgs ...sdk.Msg) ([]byte, er
 			for _, message := range protoProvider.GetProtoTx().GetBody().GetMessages() {
 				temps := strings.Split(message.TypeUrl, ".")
 				typeName := temps[len(temps)-1]
-				message.TypeUrl = *msgPackage + "." + typeName
+				message.TypeUrl = "/" + *msgPackage + "." + typeName
 			}
 		}
 	}
