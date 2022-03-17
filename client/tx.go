@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -176,7 +178,11 @@ func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg, msgPackage 
 			typeName := temps[len(temps)-1]
 			message.TypeUrl = *msgPackage + "." + typeName
 		}
+		str, _ := json.Marshal(protoProvider)
+		log.Println("protoProvider:", str)
 	}
+	str, _ := json.Marshal(txb)
+	log.Println("txb:", str)
 
 	done := cc.SetSDKContext()
 	if err = tx.Sign(txf, cc.Config.Key, txb, false); err != nil {
