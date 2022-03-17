@@ -130,7 +130,12 @@ func (cc *ChainClient) SendMessages(msgs []provider.RelayerMessage) (*provider.R
 }
 
 func (cc *ChainClient) SendMsg(ctx context.Context, msg sdk.Msg) (*sdk.TxResponse, error) {
-	return cc.SendMsgs(ctx, []sdk.Msg{msg})
+	return cc.SendMsgs(ctx, []sdk.Msg{msg}, nil)
+}
+
+// If msgPackage is privided and not empty, the package in the Any typeUrl of the msg will be replaced with the provided msgPackage
+func (cc *ChainClient) SendMsgWithPackageName(ctx context.Context, msg sdk.Msg, msgPackage *string) (*sdk.TxResponse, error) {
+	return cc.SendMsgs(ctx, []sdk.Msg{msg}, msgPackage)
 }
 
 // SendMsgs wraps the msgs in a StdTx, signs and sends it. An error is returned if there
@@ -138,7 +143,7 @@ func (cc *ChainClient) SendMsg(ctx context.Context, msg sdk.Msg) (*sdk.TxRespons
 // not return an error. If a transaction is successfully sent, the result of the execution
 // of that transaction will be logged. A boolean indicating if a transaction was successfully
 // sent and executed successfully is returned.
-func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg) (*sdk.TxResponse, error) {
+func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg, msgPackage *string) (*sdk.TxResponse, error) {
 	txf, err := cc.PrepareFactory(cc.TxFactory())
 	if err != nil {
 		return nil, err
@@ -161,11 +166,16 @@ func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg) (*sdk.TxRes
 		return nil, err
 	}
 
-	// Attach the signature to the transaction
-	// c.LogFailedTx(nil, err, msgs)
-	// Force encoding in the chain specific address
-	for _, msg := range msgs {
-		cc.Codec.Marshaler.MustMarshalJSON(msg)
+	if msgPackage != nil && *msgPackage != "" {
+		protoProvider, ok := txb.(protoTxProvider)
+		if !ok {
+			return nil, fmt.Errorf("not a protoTxProvider")
+		}
+		for _, message := range protoProvider.GetProtoTx().GetBody().GetMessages() {
+			temps := strings.Split(message.TypeUrl, ".")
+			typeName := temps[len(temps)-1]
+			message.TypeUrl = *msgPackage + "." + typeName
+		}
 	}
 
 	done := cc.SetSDKContext()
