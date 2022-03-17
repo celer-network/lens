@@ -3,9 +3,7 @@ package client
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -154,7 +152,7 @@ func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg, msgPackage 
 	// TODO: Make this work with new CalculateGas method
 	// TODO: This is related to GRPC client stuff?
 	// https://github.com/cosmos/cosmos-sdk/blob/5725659684fc93790a63981c653feee33ecf3225/client/tx/tx.go#L297
-	_, adjusted, err := cc.CalculateGas(txf, msgs...)
+	_, adjusted, err := cc.CalculateGasWithPackageName(txf, msgPackage, msgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -178,11 +176,7 @@ func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg, msgPackage 
 			typeName := temps[len(temps)-1]
 			message.TypeUrl = *msgPackage + "." + typeName
 		}
-		str, _ := json.Marshal(protoProvider)
-		log.Println("protoProvider:", str)
 	}
-	str, _ := json.Marshal(txb)
-	log.Println("txb:", str)
 
 	done := cc.SetSDKContext()
 	if err = tx.Sign(txf, cc.Config.Key, txb, false); err != nil {
@@ -307,7 +301,11 @@ func (cc *ChainClient) PrepareFactory(txf tx.Factory) (tx.Factory, error) {
 }
 
 func (cc *ChainClient) CalculateGas(txf tx.Factory, msgs ...sdk.Msg) (txtypes.SimulateResponse, uint64, error) {
-	txBytes, err := BuildSimTx(txf, msgs...)
+	return cc.CalculateGasWithPackageName(txf, nil, msgs...)
+}
+
+func (cc *ChainClient) CalculateGasWithPackageName(txf tx.Factory, msgPackage *string, msgs ...sdk.Msg) (txtypes.SimulateResponse, uint64, error) {
+	txBytes, err := BuildSimTx(txf, msgPackage, msgs...)
 	if err != nil {
 		return txtypes.SimulateResponse{}, 0, err
 	}
@@ -394,10 +392,23 @@ type protoTxProvider interface {
 
 // BuildSimTx creates an unsigned tx with an empty single signature and returns
 // the encoded transaction or an error if the unsigned transaction cannot be built.
-func BuildSimTx(txf tx.Factory, msgs ...sdk.Msg) ([]byte, error) {
+func BuildSimTx(txf tx.Factory, msgPackage *string, msgs ...sdk.Msg) ([]byte, error) {
 	txb, err := tx.BuildUnsignedTx(txf, msgs...)
 	if err != nil {
 		return nil, err
+	}
+
+	protoProvider, ok := txb.(protoTxProvider)
+	if !ok {
+		return nil, fmt.Errorf("cannot simulate amino tx")
+	} else {
+		if msgPackage != nil && *msgPackage != "" {
+			for _, message := range protoProvider.GetProtoTx().GetBody().GetMessages() {
+				temps := strings.Split(message.TypeUrl, ".")
+				typeName := temps[len(temps)-1]
+				message.TypeUrl = *msgPackage + "." + typeName
+			}
+		}
 	}
 
 	// Create an empty signature literal as the ante handler will populate with a
@@ -411,11 +422,6 @@ func BuildSimTx(txf tx.Factory, msgs ...sdk.Msg) ([]byte, error) {
 	}
 	if err := txb.SetSignatures(sig); err != nil {
 		return nil, err
-	}
-
-	protoProvider, ok := txb.(protoTxProvider)
-	if !ok {
-		return nil, fmt.Errorf("cannot simulate amino tx")
 	}
 
 	simReq := txtypes.SimulateRequest{Tx: protoProvider.GetProtoTx()}
