@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosmos/relayer/relayer/provider"
-
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -45,11 +43,11 @@ func (ccc *ChainClientConfig) SignMode() signing.SignMode {
 	return signMode
 }
 
-func (cc *ChainClient) SendMessage(msg provider.RelayerMessage) (*provider.RelayerTxResponse, bool, error) {
-	return cc.SendMessages([]provider.RelayerMessage{msg})
+func (cc *ChainClient) SendMessage(msg RelayerMessage) (*RelayerTxResponse, bool, error) {
+	return cc.SendMessages([]RelayerMessage{msg})
 }
 
-func (cc *ChainClient) SendMessages(msgs []provider.RelayerMessage) (*provider.RelayerTxResponse, bool, error) {
+func (cc *ChainClient) SendMessages(msgs []RelayerMessage) (*RelayerTxResponse, bool, error) {
 	// Query account details
 	txf, err := cc.PrepareFactory(cc.TxFactory())
 	if err != nil {
@@ -109,7 +107,7 @@ func (cc *ChainClient) SendMessages(msgs []provider.RelayerMessage) (*provider.R
 		}
 	}
 
-	rlyRes := &provider.RelayerTxResponse{
+	rlyRes := &RelayerTxResponse{
 		Height: res.Height,
 		TxHash: res.TxHash,
 		Code:   res.Code,
