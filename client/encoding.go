@@ -3,7 +3,6 @@ package client
 import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/codec/types"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/std"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -11,7 +10,7 @@ import (
 )
 
 type Codec struct {
-	InterfaceRegistry types.InterfaceRegistry
+	InterfaceRegistry cdctypes.InterfaceRegistry
 	Marshaler         codec.Codec
 	TxConfig          client.TxConfig
 	Amino             *codec.LegacyAmino
