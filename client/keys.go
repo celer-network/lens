@@ -11,7 +11,7 @@ import (
 )
 
 func (cc *ChainClient) CreateKeystore(path string) error {
-	keybase, err := keyring.New(cc.Config.ChainID, cc.Config.KeyringBackend, cc.Config.KeyDirectory, cc.Input, cc.KeyringOptions...)
+	keybase, err := keyring.New(cc.Config.ChainID, cc.Config.KeyringBackend, cc.Config.KeyDirectory, cc.Input, cc.Codec.Marshaler, cc.KeyringOptions...)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,8 @@ func (cc *ChainClient) ShowAddress(name string) (address string, err error) {
 	if err != nil {
 		return "", err
 	}
-	out, err := cc.EncodeBech32AccAddr(info.GetAddress())
+	addr, _ := info.GetAddress()
+	out, err := cc.EncodeBech32AccAddr(addr)
 	if err != nil {
 		return "", err
 	}
@@ -63,11 +64,12 @@ func (cc *ChainClient) ListAddresses() (map[string]string, error) {
 		return nil, err
 	}
 	for _, k := range info {
-		addr, err := cc.EncodeBech32AccAddr(k.GetAddress())
+		addr_t, _ := k.GetAddress()
+		addr, err := cc.EncodeBech32AccAddr(addr_t)
 		if err != nil {
 			return nil, err
 		}
-		out[k.GetName()] = addr
+		out[k.Name] = addr
 	}
 	return out, nil
 }
@@ -85,7 +87,7 @@ func (cc *ChainClient) KeyExists(name string) bool {
 		return false
 	}
 
-	return k.GetName() == name
+	return k.Name == name
 
 }
 
@@ -111,7 +113,8 @@ func (cc *ChainClient) KeyAddOrRestore(keyName string, coinType uint32, mnemonic
 		return nil, err
 	}
 
-	out, err := cc.EncodeBech32AccAddr(info.GetAddress())
+	addr, _ := info.GetAddress()
+	out, err := cc.EncodeBech32AccAddr(addr)
 	if err != nil {
 		return nil, err
 	}

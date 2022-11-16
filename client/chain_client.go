@@ -52,7 +52,7 @@ func NewChainClient(ccc *ChainClientConfig, homepath string, input io.Reader, ou
 
 func (cc *ChainClient) Init() error {
 	// TODO: test key directory and return error if not created
-	keybase, err := keyring.New(cc.Config.ChainID, cc.Config.KeyringBackend, cc.Config.KeyDirectory, cc.Input, cc.KeyringOptions...)
+	keybase, err := keyring.New(cc.Config.ChainID, cc.Config.KeyringBackend, cc.Config.KeyDirectory, cc.Input, cc.Codec.Marshaler, cc.KeyringOptions...)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,8 @@ func (cc *ChainClient) GetKeyAddress() (sdk.AccAddress, error) {
 	if err != nil {
 		return nil, err
 	}
-	return info.GetAddress(), nil
+	addr, _ := info.GetAddress()
+	return addr, nil
 }
 
 func NewRPCClient(addr string, timeout time.Duration) (*rpchttp.HTTP, error) {

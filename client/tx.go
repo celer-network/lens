@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -67,7 +68,7 @@ func (cc *ChainClient) SendMessages(msgs []RelayerMessage) (*RelayerTxResponse, 
 	txf = txf.WithGas(adjusted)
 
 	// Build the transaction builder
-	txb, err := tx.BuildUnsignedTx(txf, CosmosMsgs(msgs...)...)
+	txb, err := txf.BuildUnsignedTx(CosmosMsgs(msgs...)...)
 	if err != nil {
 		return nil, false, err
 	}
@@ -159,7 +160,7 @@ func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg, msgPackage 
 	txf = txf.WithGas(adjusted)
 
 	// Build the transaction builder
-	txb, err := tx.BuildUnsignedTx(txf, msgs...)
+	txb, err := txf.BuildUnsignedTx(msgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +194,7 @@ func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg, msgPackage 
 	if err != nil {
 		return nil, fmt.Errorf("BroadcastTx err: %w", err)
 	}
-	if txResponse.Code != sdkerrors.SuccessABCICode {
+	if txResponse.Code != errorsmod.SuccessABCICode {
 		txResponseErr := fmt.Errorf("BroadcastTx failed with code: %d, rawLog: %s",
 			txResponse.Code, txResponse.RawLog)
 
@@ -231,7 +232,7 @@ func (cc *ChainClient) waitMined(txHash string) (*sdk.TxResponse, error) {
 	}
 	if !mined {
 		return txResponse, fmt.Errorf("tx not mined, err: %w", err)
-	} else if txResponse.Code != sdkerrors.SuccessABCICode {
+	} else if txResponse.Code != errorsmod.SuccessABCICode {
 		if txResponse.Code == sdkerrors.ErrOutOfGas.ABCICode() { // out of gas
 			return txResponse, fmt.Errorf("tx failed with %w, %s", errGasCode, txResponse.RawLog)
 		} else if txResponse.Code == sdkerrors.ErrWrongSequence.ABCICode() {
@@ -391,7 +392,7 @@ type protoTxProvider interface {
 // BuildSimTx creates an unsigned tx with an empty single signature and returns
 // the encoded transaction or an error if the unsigned transaction cannot be built.
 func BuildSimTx(txf tx.Factory, msgPackage *string, msgs ...sdk.Msg) ([]byte, error) {
-	txb, err := tx.BuildUnsignedTx(txf, msgs...)
+	txb, err := txf.BuildUnsignedTx(msgs...)
 	if err != nil {
 		return nil, err
 	}

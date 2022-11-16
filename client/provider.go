@@ -92,13 +92,14 @@ func (cc *ChainClient) Timeout() string {
 func (cc *ChainClient) Address() (string, error) {
 	var (
 		err  error
-		info keyring.Info
+		info *keyring.Record
 	)
 	info, err = cc.Keybase.Key(cc.Config.Key)
 	if err != nil {
 		return "", err
 	}
-	out, err := cc.EncodeBech32AccAddr(info.GetAddress())
+	addr, _ := info.GetAddress()
+	out, err := cc.EncodeBech32AccAddr(addr)
 	if err != nil {
 		return "", err
 	}
