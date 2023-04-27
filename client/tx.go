@@ -27,6 +27,7 @@ func (cc *ChainClient) TxFactory() tx.Factory {
 		WithChainID(cc.Config.ChainID).
 		WithTxConfig(cc.Codec.TxConfig).
 		WithGasAdjustment(cc.Config.GasAdjustment).
+		WithGas(cc.Config.Gas).
 		WithGasPrices(cc.Config.GasPrices).
 		WithFees(cc.Config.Fees).
 		WithKeybase(cc.Keybase).
@@ -148,16 +149,18 @@ func (cc *ChainClient) SendMsgs(ctx context.Context, msgs []sdk.Msg, msgPackage 
 		return nil, err
 	}
 
-	// TODO: Make this work with new CalculateGas method
-	// TODO: This is related to GRPC client stuff?
-	// https://github.com/cosmos/cosmos-sdk/blob/5725659684fc93790a63981c653feee33ecf3225/client/tx/tx.go#L297
-	_, adjusted, err := cc.CalculateGasWithPackageName(txf, msgPackage, msgs...)
-	if err != nil {
-		return nil, err
-	}
+	if txf.Gas() == 0 {
+		// TODO: Make this work with new CalculateGas method
+		// TODO: This is related to GRPC client stuff?
+		// https://github.com/cosmos/cosmos-sdk/blob/5725659684fc93790a63981c653feee33ecf3225/client/tx/tx.go#L297
+		_, adjusted, err := cc.CalculateGasWithPackageName(txf, msgPackage, msgs...)
+		if err != nil {
+			return nil, err
+		}
 
-	// Set the gas amount on the transaction factory
-	txf = txf.WithGas(adjusted)
+		// Set the gas amount on the transaction factory
+		txf = txf.WithGas(adjusted)
+	}
 
 	// Build the transaction builder
 	txb, err := tx.BuildUnsignedTx(txf, msgs...)

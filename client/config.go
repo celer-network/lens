@@ -46,21 +46,25 @@ var (
 )
 
 type ChainClientConfig struct {
-	Key            string                  `json:"key" yaml:"key"`
-	ChainID        string                  `json:"chain-id" yaml:"chain-id"`
-	RPCAddr        string                  `json:"rpc-addr" yaml:"rpc-addr"`
-	GRPCAddr       string                  `json:"grpc-addr" yaml:"grpc-addr"`
-	AccountPrefix  string                  `json:"account-prefix" yaml:"account-prefix"`
-	KeyringBackend string                  `json:"keyring-backend" yaml:"keyring-backend"`
-	GasAdjustment  float64                 `json:"gas-adjustment" yaml:"gas-adjustment"`
-	GasPrices      string                  `json:"gas-prices" yaml:"gas-prices"`
-	Fees           string                  `json:"fees" yaml:"fees"`
-	KeyDirectory   string                  `json:"key-directory" yaml:"key-directory"`
-	Debug          bool                    `json:"debug" yaml:"debug"`
-	Timeout        string                  `json:"timeout" yaml:"timeout"`
-	OutputFormat   string                  `json:"output-format" yaml:"output-format"`
-	SignModeStr    string                  `json:"sign-mode" yaml:"sign-mode"`
-	Modules        []module.AppModuleBasic `json:"-" yaml:"-"`
+	Key            string  `json:"key" yaml:"key"`
+	ChainID        string  `json:"chain-id" yaml:"chain-id"`
+	RPCAddr        string  `json:"rpc-addr" yaml:"rpc-addr"`
+	GRPCAddr       string  `json:"grpc-addr" yaml:"grpc-addr"`
+	AccountPrefix  string  `json:"account-prefix" yaml:"account-prefix"`
+	KeyringBackend string  `json:"keyring-backend" yaml:"keyring-backend"`
+	GasAdjustment  float64 `json:"gas-adjustment" yaml:"gas-adjustment"`
+	// Force gas
+	Gas uint64 `json:"gas" yaml:"gas"`
+	// Note, cannot provide both fees and gas prices, provide either one
+	GasPrices string `json:"gas-prices" yaml:"gas-prices"`
+	// Force fee
+	Fees         string                  `json:"fees" yaml:"fees"`
+	KeyDirectory string                  `json:"key-directory" yaml:"key-directory"`
+	Debug        bool                    `json:"debug" yaml:"debug"`
+	Timeout      string                  `json:"timeout" yaml:"timeout"`
+	OutputFormat string                  `json:"output-format" yaml:"output-format"`
+	SignModeStr  string                  `json:"sign-mode" yaml:"sign-mode"`
+	Modules      []module.AppModuleBasic `json:"-" yaml:"-"`
 }
 
 func (ccc *ChainClientConfig) Validate() error {
