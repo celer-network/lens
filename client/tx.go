@@ -28,6 +28,7 @@ func (cc *ChainClient) TxFactory() tx.Factory {
 		WithTxConfig(cc.Codec.TxConfig).
 		WithGasAdjustment(cc.Config.GasAdjustment).
 		WithGasPrices(cc.Config.GasPrices).
+		WithFees(cc.Config.Fees).
 		WithKeybase(cc.Keybase).
 		WithSignMode(cc.Config.SignMode())
 }

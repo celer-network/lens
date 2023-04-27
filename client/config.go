@@ -54,6 +54,7 @@ type ChainClientConfig struct {
 	KeyringBackend string                  `json:"keyring-backend" yaml:"keyring-backend"`
 	GasAdjustment  float64                 `json:"gas-adjustment" yaml:"gas-adjustment"`
 	GasPrices      string                  `json:"gas-prices" yaml:"gas-prices"`
+	Fees           string                  `json:"fees" yaml:"fees"`
 	KeyDirectory   string                  `json:"key-directory" yaml:"key-directory"`
 	Debug          bool                    `json:"debug" yaml:"debug"`
 	Timeout        string                  `json:"timeout" yaml:"timeout"`
