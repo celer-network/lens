@@ -17,6 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	abci "github.com/tendermint/tendermint/abci/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -255,7 +256,47 @@ func (cc *ChainClient) queryTx(hashHexStr string) (*sdk.TxResponse, error) {
 
 	resTx, err := cc.RPCClient.Tx(context.Background(), hash, true)
 	if err != nil {
-		return nil, err
+		if strings.Contains(err.Error(), "illegal base64 data") {
+			resTxV2, err := cc.RPCClient.TxV2(context.Background(), hash, true, &ResultTxV2{})
+			if err != nil {
+				return nil, err
+			}
+			resTxV2Temp := resTxV2.(*ResultTxV2)
+			var events []abci.Event
+			for _, e := range resTxV2Temp.TxResult.Events {
+				var attributes []abci.EventAttribute
+				for _, a := range e.Attributes {
+					attributes = append(attributes, abci.EventAttribute{
+						Key:   []byte(a.Key),
+						Value: []byte(a.Value),
+						Index: a.Index,
+					})
+				}
+				events = append(events, abci.Event{
+					Type:       e.Type,
+					Attributes: attributes,
+				})
+			}
+			resTx = &coretypes.ResultTx{
+				Hash:   resTxV2Temp.Hash,
+				Height: resTxV2Temp.Heightv,
+				Index:  resTxV2Temp.Index,
+				TxResult: abci.ResponseDeliverTx{
+					Code:      resTxV2Temp.TxResult.Code,
+					Data:      resTxV2Temp.TxResult.Data,
+					Log:       resTxV2Temp.TxResult.Log,
+					Info:      resTxV2Temp.TxResult.Info,
+					GasWanted: resTxV2Temp.TxResult.GasWanted,
+					GasUsed:   resTxV2Temp.TxResult.GasUsed,
+					Events:    events,
+					Codespace: resTxV2Temp.TxResult.Codespace,
+				},
+				Tx:    resTxV2Temp.Tx,
+				Proof: resTxV2Temp.Proofv,
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	out, err := cc.mkTxResult(resTx)

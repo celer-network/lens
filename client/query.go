@@ -8,7 +8,10 @@ import (
 	"strings"
 	"time"
 
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/bytes"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	"github.com/tendermint/tendermint/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	querytypes "github.com/cosmos/cosmos-sdk/types/query"
@@ -25,7 +28,89 @@ func (cc *ChainClient) QueryTx(hashHex string) (*ctypes.ResultTx, error) {
 		return &ctypes.ResultTx{}, err
 	}
 
-	return cc.RPCClient.Tx(context.Background(), hash, true)
+	resTx, err := cc.RPCClient.Tx(context.Background(), hash, true)
+	if err != nil {
+		if strings.Contains(err.Error(), "illegal base64 data") {
+			resTxV2, errI := cc.RPCClient.TxV2(context.Background(), hash, true, &ResultTxV2{})
+			if errI != nil {
+				return &ctypes.ResultTx{}, errI
+			}
+			resTxV2Temp := resTxV2.(*ResultTxV2)
+			var events []abci.Event
+			for _, e := range resTxV2Temp.TxResult.Events {
+				var attributes []abci.EventAttribute
+				for _, a := range e.Attributes {
+					attributes = append(attributes, abci.EventAttribute{
+						Key:   []byte(a.Key),
+						Value: []byte(a.Value),
+						Index: a.Index,
+					})
+				}
+				events = append(events, abci.Event{
+					Type:       e.Type,
+					Attributes: attributes,
+				})
+			}
+			resTx = &ctypes.ResultTx{
+				Hash:   resTxV2Temp.Hash,
+				Height: resTxV2Temp.Heightv,
+				Index:  resTxV2Temp.Index,
+				TxResult: abci.ResponseDeliverTx{
+					Code:      resTxV2Temp.TxResult.Code,
+					Data:      resTxV2Temp.TxResult.Data,
+					Log:       resTxV2Temp.TxResult.Log,
+					Info:      resTxV2Temp.TxResult.Info,
+					GasWanted: resTxV2Temp.TxResult.GasWanted,
+					GasUsed:   resTxV2Temp.TxResult.GasUsed,
+					Events:    events,
+					Codespace: resTxV2Temp.TxResult.Codespace,
+				},
+				Tx:    resTxV2Temp.Tx,
+				Proof: resTxV2Temp.Proofv,
+			}
+			err = nil //reset err
+		}
+	}
+	return resTx, err
+}
+
+type ResultTxV2 struct {
+	Hash     bytes.HexBytes      `json:"hash"`
+	Heightv  int64               `json:"height"`
+	Index    uint32              `json:"index"`
+	TxResult ResponseDeliverTxV2 `json:"tx_result"`
+	Tx       types.Tx            `json:"tx"`
+	Proofv   types.TxProof       `json:"proof,omitempty"`
+}
+
+type ResponseDeliverTxV2 struct {
+	Code      uint32    `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Data      []byte    `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	Log       string    `protobuf:"bytes,3,opt,name=log,proto3" json:"log,omitempty"`
+	Info      string    `protobuf:"bytes,4,opt,name=info,proto3" json:"info,omitempty"`
+	GasWanted int64     `protobuf:"varint,5,opt,name=gas_wanted,proto3" json:"gas_wanted,omitempty"`
+	GasUsed   int64     `protobuf:"varint,6,opt,name=gas_used,proto3" json:"gas_used,omitempty"`
+	Events    []EventV2 `protobuf:"bytes,7,rep,name=events,proto3" json:"events,omitempty"`
+	Codespace string    `protobuf:"bytes,8,opt,name=codespace,proto3" json:"codespace,omitempty"`
+}
+
+type EventV2 struct {
+	Type       string             `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Attributes []EventAttributeV2 `protobuf:"bytes,2,rep,name=attributes,proto3" json:"attributes,omitempty"`
+}
+
+type EventAttributeV2 struct {
+	Key   string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Index bool   `protobuf:"varint,3,opt,name=index,proto3" json:"index,omitempty"`
+}
+
+func (r ResultTxV2) Height() int64 {
+	return r.Heightv
+}
+
+func (r ResultTxV2) Proof() types.TxProof {
+	return r.Proofv
 }
 
 // QueryTxs returns an array of transactions given a tag
